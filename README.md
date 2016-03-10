@@ -1,0 +1,1 @@
+Dockerfile to create and instance of Jenkins running behind Nginx.
