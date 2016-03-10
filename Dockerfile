@@ -1,6 +1,24 @@
-FROM jenkins:latest
+FROM openresty/openresty:1.11.2.2-xenial
 
-COPY executors.groovy /usr/share/jenkins/ref/init.groovy.d/executors.groovy
-ENV JENKINS_OPTS --prefix=/jenkins
+RUN apt-get update && apt-get install -y runit && \
+    luarocks install nginx-lua-prometheus && \
+    mkdir -p /etc/nginx/conf.d/ /var/log/nginx/ /var/run/nginx
 
-EXPOSE 8080
+ENV CT_URL https://releases.hashicorp.com/consul-template/0.19.5/consul-template_0.19.5_linux_amd64.zip
+RUN curl -O $CT_URL && unzip consul-template_0.19.5_linux_amd64.zip -d /usr/local/bin
+
+ADD ./openresty.service /lib/systemd/system/
+RUN systemctl enable openresty
+ADD ./consul/nginx.service /etc/service/nginx/run
+ADD ./consul/consul-template.service /etc/service/consul-template/run
+RUN chmod +x /etc/service/nginx/run
+RUN chmod +x /etc/service/consul-template/run
+
+ADD ./supervisor/ /etc/supervisor/
+ADD ./consul/nginx.conf /etc/consul-templates/nginx.conf
+ADD ./consul/index.html /etc/consul-templates/index.html
+ADD ./docker-entrypoint.sh /
+
+ADD ./nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+
+ENTRYPOINT ["/usr/bin/runsvdir", "/etc/service"]
